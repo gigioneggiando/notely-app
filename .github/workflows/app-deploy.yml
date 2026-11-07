@@ -22,14 +22,24 @@ jobs:
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
       - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
-      - name: Build and push both images (tag = commit SHA)
-        run: |
-          docker build --platform linux/amd64 -t "$REGISTRY/notely-api:$GITHUB_SHA" backend
-          docker build --platform linux/amd64 -t "$REGISTRY/notely-web:$GITHUB_SHA" frontend
-          docker push "$REGISTRY/notely-api:$GITHUB_SHA"
-          docker push "$REGISTRY/notely-web:$GITHUB_SHA"
-      # Only the image changes; env vars, secrets, VPC egress and identity are kept from the current revision.
       - name: Deploy new revisions
         run: |
-          gcloud run deploy notely-api --region ${{ vars.GCP_REGION }} --image "$REGISTRY/notely-api:$GITHUB_SHA" --quiet
-          gcloud run deploy notely-web --region ${{ vars.GCP_REGION }} --image "$REGISTRY/notely-web:$GITHUB_SHA" --quiet
+          gcloud run deploy notely-api \
+            --region "${{ vars.GCP_REGION }}" \
+            --image "$REGISTRY/notely-api:$GITHUB_SHA" \
+            --ingress internal \
+            --service-account "notely-api-sa@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --network default \
+            --subnet default \
+            --vpc-egress private-ranges-only \
+            --quiet
+
+          gcloud run deploy notely-web \
+            --region "${{ vars.GCP_REGION }}" \
+            --image "$REGISTRY/notely-web:$GITHUB_SHA" \
+            --ingress all \
+            --service-account "notely-web-sa@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --network default \
+            --subnet default \
+            --vpc-egress all-traffic \
+            --quiet
