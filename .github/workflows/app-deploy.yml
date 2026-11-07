@@ -22,6 +22,12 @@ jobs:
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
       - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Build and push both images
+        run: |
+          docker build --platform linux/amd64 -t "$REGISTRY/notely-api:$GITHUB_SHA" backend
+          docker build --platform linux/amd64 -t "$REGISTRY/notely-web:$GITHUB_SHA" frontend
+          docker push "$REGISTRY/notely-api:$GITHUB_SHA"
+          docker push "$REGISTRY/notely-web:$GITHUB_SHA"
       - name: Deploy new revisions
         run: |
           gcloud run deploy notely-api \
